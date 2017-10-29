@@ -9,8 +9,11 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by yjoo9_000 on 2017-10-29.
@@ -19,6 +22,7 @@ import java.io.IOException;
 public class PhotoGalleryFragment extends Fragment {
     private static final String TAG = "PhotoGalleryFragment";
     private RecyclerView mRecyclerView;
+    private List<GalleryItem> mItems = new ArrayList<>();
 
     public static PhotoGalleryFragment newInstance(){
         return new PhotoGalleryFragment();
@@ -36,19 +40,63 @@ public class PhotoGalleryFragment extends Fragment {
         View v = inflater.inflate(R.layout.fragment_photo_gallery, container, false);
         mRecyclerView = (RecyclerView)v.findViewById(R.id.fragment_photo_gallery_recycler_view);
         mRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 3));
+        setupAdapter();
         return v;
     }
 
-    private class FetchTask extends AsyncTask<Void, Void, Void> {
+    private void setupAdapter(){
+        if(isAdded()){
+            mRecyclerView.setAdapter(new PhotoAdapter(mItems));
+        }
+    }
+
+    private class PhotoHolder extends RecyclerView.ViewHolder{
+        private TextView mTitleTextView;
+        public PhotoHolder(View view){
+            super(view);
+            mTitleTextView = (TextView) view;
+        }
+
+        public void bindGalleryItem(GalleryItem item){
+            mTitleTextView.setText(item.getCaption());
+        }
+    }
+
+    private class PhotoAdapter extends  RecyclerView.Adapter<PhotoHolder>{
+        private List<GalleryItem> mGalleryItems;
+
+        public PhotoAdapter(List<GalleryItem> items){
+            mGalleryItems = items;
+        }
+
         @Override
-        protected Void doInBackground(Void... params){
-            try{
-                String result = new FlickrFetchr().getUrlString("http://www.google.com");
-                Log.i(TAG, "Fetched content: "+result);
-            } catch(IOException e){
-                Log.e(TAG, "Failed to fetch: "+e);
-            }
-            return null;
+        public PhotoHolder onCreateViewHolder(ViewGroup viewGroup, int viewType){
+            TextView view = new TextView(getActivity());
+            return new PhotoHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(PhotoHolder photoHolder, int position){
+            GalleryItem item = mGalleryItems.get(position);
+            photoHolder.bindGalleryItem(item);
+        }
+
+        @Override
+        public int getItemCount(){
+            return mGalleryItems.size();
+        }
+    }
+
+    private class FetchTask extends AsyncTask<Void, Void, List<GalleryItem>> {
+        @Override
+        protected List<GalleryItem> doInBackground(Void... params){
+            return new FlickrFetchr().fetchItems();
+        }
+
+        @Override
+        protected void onPostExecute(List<GalleryItem> items){
+            mItems = items;
+            setupAdapter();
         }
     }
 }

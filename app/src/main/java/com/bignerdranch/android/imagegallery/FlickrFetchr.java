@@ -38,11 +38,11 @@ public class FlickrFetchr {
             while((line = br.readLine()) != null){
                 sb.append(line);
             }
-
-        }catch(IOException e){
+            Log.i(TAG, sb.toString());
 
         } finally{
-            is.close();
+            if(is != null)
+                is.close();
             connection.disconnect();
         }
         return sb.toString();

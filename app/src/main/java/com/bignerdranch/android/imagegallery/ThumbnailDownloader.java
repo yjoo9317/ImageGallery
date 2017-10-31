@@ -20,10 +20,22 @@ public class ThumbnailDownloader<T> extends HandlerThread {
 
     public static final int MESSAGE_DOWNLOAD = 0;
     private Handler mRequestHandler;
+    private Handler mResonseHandler;
+    private ThumbnailDownloadListener<T> mThumbnailDownloadListener;
+
     private ConcurrentMap<T, String> mRequestMap = new ConcurrentHashMap<>();
 
-    public ThumbnailDownloader(){
+    public interface ThumbnailDownloadListener<T> {
+        void onThumbnailDownloaded(T target, Bitmap thumbnail);
+    }
+
+    public void setThumbnailDownloadListener(ThumbnailDownloadListener<T> listener){
+        mThumbnailDownloadListener = listener;
+    }
+
+    public ThumbnailDownloader(Handler responseHandler){
         super(TAG);
+        mResonseHandler = responseHandler;
     }
 
     public void queueThumbnail(T target, String url){
@@ -34,6 +46,10 @@ public class ThumbnailDownloader<T> extends HandlerThread {
             mRequestMap.put(target, url);
             mRequestHandler.obtainMessage(MESSAGE_DOWNLOAD, target).sendToTarget();
         }
+    }
+
+    public void clearQueue(){
+        mRequestHandler.removeMessages(MESSAGE_DOWNLOAD);
     }
 
     @Override
@@ -51,10 +67,22 @@ public class ThumbnailDownloader<T> extends HandlerThread {
 
     private void handleRequest(final T target){
         try{
-            String url = mRequestMap.get(target);
+            final String url = mRequestMap.get(target);
             if(url == null) return;
             byte[] bitmapBytes = new FlickrFetchr().getUrlBytes(url);
-            Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapBytes, 0, bitmapBytes.length);
+            final Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapBytes, 0, bitmapBytes.length);
+
+            mResonseHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    if(mRequestMap.get(target) != url){
+                        return;
+                    }
+                    mRequestMap.remove(target);
+                    mThumbnailDownloadListener.onThumbnailDownloaded(target, bitmap);
+                }
+            });
+
         }catch(IOException e){
             Log.e(TAG, "Failed to download Image", e);
         }
